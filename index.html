@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -10,8 +10,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         .a4-preview {
-            width: 842px;  /* A4横版宽度：297mm≈842px */
-            height: 595px; /* A4横版高度：210mm≈595px */
+            width: 842px;  /* A4横版宽度 */
+            height: 595px; /* A4横版高度 */
             margin: 20px auto;
             border: 2px solid #e5e7eb;
             border-radius: 8px;
@@ -23,7 +23,6 @@
             gap: 20px;
             background: white;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            position: relative;
         }
         .pdf-page-preview {
             width: 100%;
@@ -53,16 +52,17 @@
 <body class="bg-gray-50 min-h-screen">
     <div class="max-w-7xl mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold text-center mb-2 text-gray-800">票票合</h1>
-        <p class="text-center text-gray-600 mb-8">自动提取每个PDF的第一页，按2列×2行排版（每页4张，A4横版）</p>
+        <p class="text-center text-gray-600 mb-8">支持PDF/图片文件，自动按2列×2行排版（每页4张，A4横版）</p>
         
         <!-- 文件上传区域 -->
         <div class="bg-white rounded-lg shadow-md p-8 mb-8">
             <div class="text-center">
-                <label for="pdf-upload" class="inline-block px-8 py-4 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600 transition-colors font-medium">
-                    📁 选择PDF文件
+                <label for="file-upload" class="inline-block px-8 py-4 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600 transition-colors font-medium">
+                    📁 选择PDF/图片文件
                 </label>
-                <input type="file" id="pdf-upload" accept=".pdf" multiple class="hidden">
+                <input type="file" id="file-upload" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp" multiple class="hidden">
                 <p id="file-count" class="mt-4 text-gray-600">未选择文件</p>
+                <p class="mt-2 text-sm text-gray-500">支持格式：PDF、JPG、PNG、GIF、BMP</p>
                 
                 <!-- 进度条 -->
                 <div id="progress-container" class="hidden mt-6">
@@ -77,7 +77,7 @@
         <!-- 加载动画 -->
         <div id="loading" class="hidden flex flex-col items-center justify-center py-12">
             <div class="loading-spinner"></div>
-            <p class="mt-4 text-gray-600">正在处理PDF文件...</p>
+            <p class="mt-4 text-gray-600">正在处理文件...</p>
         </div>
 
         <!-- 排版预览区域 -->
@@ -103,22 +103,22 @@
         const { jsPDF } = window.jspdf;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        // 配置：2列×2行，每页4张，A4竖版
+        // 配置
         const CONFIG = {
             cols: 2,
             rows: 2,
             perPage: 4,
-            marginX: 30,  // 左右边距（30mm = 3厘米）
-            marginY: 20,  // 上下边距（20mm = 2厘米）
+            marginX: 30,  // 左右边距（mm）
+            marginY: 20,  // 上下边距（mm）
             gapX: 10,     // 列间距（mm）
             gapY: 10,     // 行间距（mm）
-            scale: 3,     // 高质量渲染
-            quality: 0.92 // 图片质量
+            scale: 2,     // 图片缩放比例
+            quality: 0.95 // 图片质量
         };
 
         // DOM元素
         const elements = {
-            fileInput: document.getElementById('pdf-upload'),
+            fileInput: document.getElementById('file-upload'),
             fileCount: document.getElementById('file-count'),
             loading: document.getElementById('loading'),
             progressContainer: document.getElementById('progress-container'),
@@ -131,56 +131,117 @@
         };
 
         // 状态
-        let pdfPagesData = [];
+        let imageDataList = []; // 存储所有处理后的图片数据
 
-        // 工具函数：更新进度
+        // 更新进度
         function updateProgress(current, total, message = '') {
             const percent = Math.round((current / total) * 100);
             elements.progressBar.style.width = `${percent}%`;
             elements.progressText.textContent = message || `处理中 ${current}/${total} (${percent}%)`;
         }
 
-        // 工具函数：显示错误
+        // 显示错误
         function showError(message) {
             alert(`❌ 错误：${message}`);
             console.error(message);
         }
 
-        // 提取PDF第一页（不缩放）
-        async function extractPdfFirstPage(file) {
+        // PDF转图片
+        async function pdfToImage(file) {
             try {
                 const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const pdf = await pdfjsLib.getDocument({ 
+                    data: arrayBuffer,
+                    disableFontFace: true,
+                    ignoreErrors: true
+                }).promise;
+
+                if (pdf.numPages === 0) {
+                    throw new Error('PDF文件无页面');
+                }
+
                 const page = await pdf.getPage(1);
                 const viewport = page.getViewport({ scale: CONFIG.scale });
-
                 const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
                 
-                const context = canvas.getContext('2d');
-                await page.render({ canvasContext: context, viewport }).promise;
+                await page.render({
+                    canvasContext: ctx,
+                    viewport: viewport
+                }).promise;
 
                 return {
-                    imgBase64: canvas.toDataURL('image/jpeg', CONFIG.quality),
-                    originWidth: viewport.width / CONFIG.scale,
-                    originHeight: viewport.height / CONFIG.scale,
-                    fileName: file.name
+                    base64: canvas.toDataURL('image/jpeg', CONFIG.quality),
+                    width: viewport.width,
+                    height: viewport.height,
+                    fileName: file.name,
+                    fileType: 'pdf'
                 };
             } catch (error) {
-                throw new Error(`处理 ${file.name} 失败：${error.message}`);
+                throw new Error(`处理PDF ${file.name} 失败：${error.message}`);
             }
         }
 
-        // 生成预览（2×2布局）
+        // 图片文件转base64
+        function imageFileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                const img = new Image();
+
+                reader.onload = (e) => {
+                    img.onload = () => {
+                        // 创建canvas调整图片尺寸（保持比例）
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        // 按比例缩放，保持和PDF转换后的图片一致的缩放级别
+                        const scale = CONFIG.scale;
+                        canvas.width = img.width * scale;
+                        canvas.height = img.height * scale;
+                        
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        resolve({
+                            base64: canvas.toDataURL('image/jpeg', CONFIG.quality),
+                            width: canvas.width,
+                            height: canvas.height,
+                            fileName: file.name,
+                            fileType: 'image'
+                        });
+                    };
+                    
+                    img.onerror = () => reject(new Error('图片加载失败'));
+                    img.src = e.target.result;
+                };
+
+                reader.onerror = () => reject(new Error('文件读取失败'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 统一处理文件（PDF/图片）
+        async function processFile(file) {
+            if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+                return await pdfToImage(file);
+            } else if (file.type.startsWith('image/')) {
+                return await imageFileToBase64(file);
+            } else {
+                throw new Error(`不支持的文件类型：${file.name}`);
+            }
+        }
+
+        // 生成预览
         function renderPreview() {
             elements.previewContent.innerHTML = '';
-            const totalPages = Math.ceil(pdfPagesData.length / CONFIG.perPage);
+            const totalPages = Math.ceil(imageDataList.length / CONFIG.perPage);
 
             for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
                 const start = pageIdx * CONFIG.perPage;
-                const end = Math.min(start + CONFIG.perPage, pdfPagesData.length);
-                const pageData = pdfPagesData.slice(start, end);
+                const end = Math.min(start + CONFIG.perPage, imageDataList.length);
+                const pageData = imageDataList.slice(start, end);
 
                 const pageDiv = document.createElement('div');
                 pageDiv.className = 'mb-8';
@@ -193,66 +254,81 @@
                 const preview = document.createElement('div');
                 preview.className = 'a4-preview';
 
-                // 按从左到右、从上到下的顺序排列
+                // 渲染图片
                 pageData.forEach((data, idx) => {
                     const img = document.createElement('img');
                     img.className = 'pdf-page-preview';
-                    img.src = data.imgBase64;
+                    img.src = data.base64;
                     img.alt = data.fileName;
-                    img.title = data.fileName;
+                    img.title = `${data.fileName} (${data.fileType})`;
                     preview.appendChild(img);
                 });
+
+                // 补充空白占位符
+                for (let i = pageData.length; i < CONFIG.perPage; i++) {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'pdf-page-preview flex items-center justify-center text-gray-300';
+                    placeholder.textContent = '空白';
+                    preview.appendChild(placeholder);
+                }
 
                 pageDiv.appendChild(preview);
                 elements.previewContent.appendChild(pageDiv);
             }
         }
 
-        // 生成PDF（2×2布局，不缩放图片）
+        // 生成合并PDF
         function generatePDF() {
             try {
                 elements.downloadBtn.disabled = true;
                 elements.downloadBtn.textContent = '⏳ 生成中...';
 
                 const doc = new jsPDF({
-                    orientation: 'landscape',  // A4横版
+                    orientation: 'landscape',
                     unit: 'mm',
                     format: 'a4'
                 });
 
-                const a4Width = 297;   // A4横版宽度（mm）
-                const a4Height = 210;  // A4横版高度（mm）
+                const a4Width = 297;
+                const a4Height = 210;
                 
-                // 计算每张图片的可用宽度和高度（考虑边距和间距）
-                const availableWidth = a4Width - 2 * CONFIG.marginX - CONFIG.gapX;
-                const availableHeight = a4Height - 2 * CONFIG.marginY - CONFIG.gapY;
+                // 计算可用区域
+                const totalGapX = (CONFIG.cols - 1) * CONFIG.gapX;
+                const totalGapY = (CONFIG.rows - 1) * CONFIG.gapY;
+                const availableWidth = a4Width - 2 * CONFIG.marginX - totalGapX;
+                const availableHeight = a4Height - 2 * CONFIG.marginY - totalGapY;
                 const cellWidth = availableWidth / CONFIG.cols;
                 const cellHeight = availableHeight / CONFIG.rows;
 
-                pdfPagesData.forEach((page, idx) => {
+                // 像素转毫米
+                const pxToMm = (px) => px * 25.4 / 96 / CONFIG.scale;
+
+                imageDataList.forEach((imageData, idx) => {
                     const pageNum = Math.floor(idx / CONFIG.perPage);
                     const localIdx = idx % CONFIG.perPage;
-                    const col = localIdx % CONFIG.cols;  // 0或1（左到右）
-                    const row = Math.floor(localIdx / CONFIG.cols);  // 0或1（上到下）
+                    const col = localIdx % CONFIG.cols;
+                    const row = Math.floor(localIdx / CONFIG.cols);
 
                     if (localIdx === 0 && pageNum > 0) {
                         doc.addPage();
                     }
 
-                    // 计算位置（包含间距）
+                    // 计算位置
                     const x = CONFIG.marginX + col * (cellWidth + CONFIG.gapX);
                     const y = CONFIG.marginY + row * (cellHeight + CONFIG.gapY);
 
-                    // 不缩放，直接使用原始尺寸（转换为mm）
-                    const imgWidthMM = page.originWidth * 0.264583;  // px转mm（96dpi）
-                    const imgHeightMM = page.originHeight * 0.264583;
+                    // 计算图片尺寸（转毫米）
+                    const imgWidthMM = pxToMm(imageData.width);
+                    const imgHeightMM = pxToMm(imageData.height);
 
-                    // 如果图片超出可用区域，则等比例缩小以适应
+                    // 等比例缩放
                     let finalWidth = imgWidthMM;
                     let finalHeight = imgHeightMM;
                     
                     if (imgWidthMM > cellWidth || imgHeightMM > cellHeight) {
-                        const scale = Math.min(cellWidth / imgWidthMM, cellHeight / imgHeightMM);
+                        const scaleX = cellWidth / imgWidthMM;
+                        const scaleY = cellHeight / imgHeightMM;
+                        const scale = Math.min(scaleX, scaleY, 1);
                         finalWidth = imgWidthMM * scale;
                         finalHeight = imgHeightMM * scale;
                     }
@@ -261,8 +337,9 @@
                     const offsetX = (cellWidth - finalWidth) / 2;
                     const offsetY = (cellHeight - finalHeight) / 2;
 
+                    // 添加图片到PDF
                     doc.addImage(
-                        page.imgBase64,
+                        imageData.base64,
                         'JPEG',
                         x + offsetX,
                         y + offsetY,
@@ -271,11 +348,11 @@
                     );
                 });
 
-                // 获取北京时间（UTC+8）
+                // 保存PDF
                 const now = new Date();
                 const beijingTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
                 const timestamp = beijingTime.toISOString().slice(0, 19).replace(/:/g, '-').replace('T', '_');
-                doc.save(`合并PDF_${timestamp}.pdf`);
+                doc.save(`合并文件_${timestamp}.pdf`);
 
                 elements.downloadBtn.disabled = false;
                 elements.downloadBtn.textContent = '⬇️ 下载合并PDF';
@@ -288,7 +365,7 @@
 
         // 重置
         function reset() {
-            pdfPagesData = [];
+            imageDataList = [];
             elements.fileInput.value = '';
             elements.fileCount.textContent = '未选择文件';
             elements.previewContainer.classList.add('hidden');
@@ -297,19 +374,27 @@
             elements.progressContainer.classList.add('hidden');
         }
 
-        // 处理文件上传
+        // 文件上传处理
         elements.fileInput.addEventListener('change', async (e) => {
-            const files = Array.from(e.target.files).filter(f => f.type === 'application/pdf');
+            const files = Array.from(e.target.files).filter(file => 
+                file.type === 'application/pdf' || 
+                file.name.endsWith('.pdf') || 
+                file.type.startsWith('image/')
+            );
             
             if (files.length === 0) {
-                showError('请选择至少一个PDF文件');
+                showError('请选择至少一个PDF或图片文件');
                 return;
             }
 
+            // 统计文件类型
+            const pdfCount = files.filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf')).length;
+            const imageCount = files.length - pdfCount;
             const totalPages = Math.ceil(files.length / CONFIG.perPage);
-            elements.fileCount.textContent = `已选择 ${files.length} 个文件（将生成 ${totalPages} 页）`;
+            
+            elements.fileCount.textContent = `已选择 ${files.length} 个文件（PDF: ${pdfCount}，图片: ${imageCount}，将生成 ${totalPages} 页）`;
 
-            pdfPagesData = [];
+            imageDataList = [];
             elements.previewContent.innerHTML = '';
             elements.loading.classList.remove('hidden');
             elements.progressContainer.classList.remove('hidden');
@@ -317,12 +402,14 @@
             elements.resetBtn.classList.add('hidden');
 
             try {
+                // 逐个处理文件
                 for (let i = 0; i < files.length; i++) {
                     updateProgress(i + 1, files.length, `正在处理：${files[i].name}`);
-                    const pageData = await extractPdfFirstPage(files[i]);
-                    pdfPagesData.push(pageData);
+                    const imageData = await processFile(files[i]);
+                    imageDataList.push(imageData);
                 }
 
+                // 处理完成
                 elements.loading.classList.add('hidden');
                 renderPreview();
                 elements.previewContainer.classList.remove('hidden');
