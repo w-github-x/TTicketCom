@@ -103,6 +103,25 @@
         const { jsPDF } = window.jspdf;
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
+        // 自定义CMap读取器（解决CDN模式下CMapReaderFactory未初始化问题）
+        class CustomCMapReaderFactory {
+            constructor({ baseUrl }) {
+                this.baseUrl = baseUrl;
+            }
+            async fetch({ name }) {
+                const url = `${this.baseUrl}${name}.bcmap`;
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Unable to load CMap at: ${url}`);
+                }
+                const data = await response.arrayBuffer();
+                return {
+                    cMapData: new Uint8Array(data),
+                    compressionType: 1,
+                };
+            }
+        }
+
         // 配置
         const CONFIG = {
             cols: 2,
@@ -150,9 +169,14 @@
         async function pdfToImage(file) {
             try {
                 const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ 
+                const pdf = await pdfjsLib.getDocument({
                     data: arrayBuffer,
-                    disableFontFace: true,
+                    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/cmaps/',
+                    cMapPacked: true,
+                    standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/standard_fonts/',
+                    CMapReaderFactory: CustomCMapReaderFactory,
+                    disableFontFace: false,
+                    useSystemFonts: true,
                     ignoreErrors: true
                 }).promise;
 
