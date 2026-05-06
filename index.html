@@ -9,234 +9,154 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif; }
         .a4-preview {
-            width: 842px;
-            height: 595px;
+            width: 100%;
+            aspect-ratio: 297 / 210;
+            max-width: 842px;
             margin: 0 auto;
             border: 1px solid #d1d5db;
             border-radius: 6px;
             box-sizing: border-box;
             overflow: hidden;
             background: white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
+        .a4-preview img { pointer-events: none; }
         .loading-spinner {
-            border: 3px solid #e5e7eb;
-            border-top: 3px solid #3b82f6;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            animation: spin 0.8s linear infinite;
+            border: 3px solid #e5e7eb; border-top: 3px solid #3b82f6;
+            border-radius: 50%; width: 32px; height: 32px;
+            animation: spin 0.7s linear infinite;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .progress-bar {
-            transition: width 0.3s ease;
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .progress-bar { transition: width 0.3s ease; }
+
+        /* 预览项 */
         .preview-item {
-            position: relative;
-            cursor: grab;
+            position: relative; cursor: grab;
             transition: opacity 0.15s, box-shadow 0.15s;
         }
-        .preview-item:hover {
-            box-shadow: 0 0 0 2px rgba(59,130,246,0.4);
+        .preview-item:hover { box-shadow: 0 0 0 2px rgba(59,130,246,0.35); }
+        .preview-item:active { cursor: grabbing; }
+        .preview-item.dragging { opacity: 0.3; }
+        .preview-item.drag-over { box-shadow: 0 0 0 2px #3b82f6 !important; background: #eff6ff !important; }
+        .preview-item .action-btn {
+            display: none; position: absolute; border: none; border-radius: 50%;
+            color: white; text-align: center; cursor: pointer; z-index: 10; padding: 0;
+            align-items: center; justify-content: center;
         }
-        .preview-item:active {
-            cursor: grabbing;
-        }
-        .preview-item.dragging {
-            opacity: 0.35;
-        }
-        .preview-item.drag-over {
-            box-shadow: 0 0 0 2px #3b82f6 !important;
-            background: #eff6ff !important;
-        }
-        .preview-item .rotate-btn {
-            display: none;
-            position: absolute;
-            bottom: 4px;
-            right: 4px;
-            width: 20px;
-            height: 20px;
-            background: rgba(59,130,246,0.85);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            font-size: 12px;
-            line-height: 20px;
-            text-align: center;
-            cursor: pointer;
-            z-index: 10;
-            padding: 0;
-        }
-        .preview-item:hover .rotate-btn {
-            display: block;
-        }
-        .preview-item .delete-btn {
-            display: none;
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 20px;
-            height: 20px;
-            background: rgba(239,68,68,0.9);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            font-size: 11px;
-            line-height: 20px;
-            text-align: center;
-            cursor: pointer;
-            z-index: 10;
-            padding: 0;
-        }
-        .preview-item:hover .delete-btn {
-            display: block;
-        }
+        .preview-item:hover .action-btn { display: flex; }
+        .preview-item .action-btn:disabled { opacity: 0.3; cursor: default; }
         .preview-item .order-badge {
-            position: absolute;
-            top: 4px;
-            left: 4px;
-            min-width: 18px;
-            height: 18px;
-            background: rgba(59,130,246,0.85);
-            color: white;
-            border-radius: 9px;
-            font-size: 10px;
-            line-height: 18px;
-            text-align: center;
-            z-index: 10;
-            padding: 0 4px;
+            position: absolute; top: 4px; left: 4px; min-width: 18px; height: 18px;
+            background: rgba(59,130,246,0.8); color: white; border-radius: 9px;
+            font-size: 10px; line-height: 18px; text-align: center; z-index: 10; padding: 0 4px;
         }
-        /* 自定义滑块 */
+
+        /* 滑块 */
         input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-            height: 4px;
-            background: #e5e7eb;
-            border-radius: 2px;
-            outline: none;
-            width: 100%;
+            -webkit-appearance: none; appearance: none;
+            height: 4px; background: #e5e7eb; border-radius: 2px; outline: none; width: 100%;
         }
         input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            background: #3b82f6;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
+            -webkit-appearance: none; width: 14px; height: 14px;
+            background: #3b82f6; border-radius: 50%; cursor: pointer;
         }
         input[type="range"]::-moz-range-thumb {
-            width: 16px;
-            height: 16px;
-            background: #3b82f6;
-            border-radius: 50%;
-            cursor: pointer;
-            border: none;
+            width: 14px; height: 14px; background: #3b82f6;
+            border-radius: 50%; cursor: pointer; border: none;
         }
-        /* 上传区域虚线 */
+
+        /* 上传区域 */
         .upload-zone {
-            border: 2px dashed #d1d5db;
-            transition: border-color 0.2s, background 0.2s;
+            border: 2px dashed #d1d5db; transition: border-color 0.2s, background 0.2s;
         }
         .upload-zone:hover, .upload-zone.drag-active {
-            border-color: #3b82f6;
-            background: #eff6ff;
+            border-color: #3b82f6; background: #f0f7ff;
         }
+
+        /* 面板切换动画 */
+        .panel-enter { animation: fadeIn 0.25s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="max-w-5xl mx-auto px-4 py-10">
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-4xl mx-auto px-4 py-8">
         <!-- 标题 -->
-        <div class="text-center mb-10">
-            <h1 class="text-3xl font-bold text-gray-800 mb-1">票票合</h1>
-            <p class="text-gray-500 text-sm">PDF / 图片合并排版工具 · A4横版 2x2 布局 · 拖拽排序 · 边距可调</p>
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-800">票票合</h1>
+            <p class="text-gray-400 text-xs mt-1">PDF / 图片合并排版 · A4横版 2x2 · 拖拽排序 · 旋转 · 边距可调</p>
         </div>
 
-        <!-- 上传区域 -->
-        <div class="bg-white rounded-xl shadow-sm p-8 mb-6">
-            <label for="file-upload" class="upload-zone rounded-xl p-10 flex flex-col items-center justify-center cursor-pointer">
-                <svg class="w-10 h-10 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+        <!-- 上传 -->
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-5">
+            <label for="file-upload" class="upload-zone rounded-lg p-8 flex flex-col items-center justify-center cursor-pointer">
+                <svg class="w-8 h-8 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/>
                 </svg>
-                <span class="text-blue-600 font-medium">点击选择文件</span>
-                <span class="text-gray-400 text-xs mt-1">或拖拽文件到此处 · 支持 PDF / JPG / PNG / GIF / BMP</span>
+                <span class="text-blue-600 text-sm font-medium">选择文件或拖拽到此处</span>
+                <span class="text-gray-400 text-xs mt-1">PDF / JPG / PNG / GIF / BMP</span>
             </label>
             <input type="file" id="file-upload" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp" multiple class="hidden">
-            <p id="file-count" class="text-center text-gray-500 text-sm mt-4 hidden"></p>
-
-            <!-- 进度条 -->
-            <div id="progress-container" class="hidden mt-4">
-                <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                    <div id="progress-bar" class="progress-bar bg-blue-500 h-1.5 rounded-full" style="width: 0%"></div>
+            <p id="file-count" class="text-center text-gray-400 text-xs mt-3 hidden"></p>
+            <div id="progress-container" class="hidden mt-3">
+                <div class="w-full bg-gray-100 rounded-full h-1 overflow-hidden">
+                    <div id="progress-bar" class="progress-bar bg-blue-500 h-1 rounded-full" style="width:0%"></div>
                 </div>
-                <p id="progress-text" class="text-xs text-gray-400 mt-1 text-center">处理中...</p>
+                <p id="progress-text" class="text-xs text-gray-400 mt-1 text-center"></p>
             </div>
         </div>
 
-        <!-- 加载动画 -->
-        <div id="loading" class="hidden flex flex-col items-center justify-center py-12">
+        <!-- 加载 -->
+        <div id="loading" class="hidden flex flex-col items-center justify-center py-10">
             <div class="loading-spinner"></div>
-            <p class="mt-3 text-gray-400 text-sm">正在处理文件...</p>
+            <p class="mt-3 text-gray-400 text-xs">正在处理文件...</p>
         </div>
 
-        <!-- 边距设置 -->
-        <div id="margin-panel" class="hidden bg-white rounded-xl shadow-sm p-6 mb-6">
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-5 max-w-2xl mx-auto">
-                <div>
-                    <div class="flex justify-between items-baseline mb-2">
-                        <label class="text-xs text-gray-500">左右边距</label>
-                        <span id="marginX-value" class="text-xs font-mono text-gray-700">30mm</span>
+        <!-- 设置 + 操作栏 -->
+        <div id="toolbar" class="hidden bg-white rounded-xl shadow-sm p-4 mb-5 panel-enter">
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <!-- 边距控制 -->
+                <div class="flex flex-wrap items-center gap-x-5 gap-y-2 flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-gray-400 whitespace-nowrap">左右边距</label>
+                        <input type="range" id="marginX-slider" min="0" max="60" step="1" value="30" class="w-16">
+                        <span id="marginX-value" class="text-xs font-mono text-gray-500 w-8">30</span>
                     </div>
-                    <input type="range" id="marginX-slider" min="0" max="60" step="1" value="30">
-                </div>
-                <div>
-                    <div class="flex justify-between items-baseline mb-2">
-                        <label class="text-xs text-gray-500">上下边距</label>
-                        <span id="marginY-value" class="text-xs font-mono text-gray-700">20mm</span>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-gray-400 whitespace-nowrap">上下边距</label>
+                        <input type="range" id="marginY-slider" min="0" max="50" step="1" value="20" class="w-16">
+                        <span id="marginY-value" class="text-xs font-mono text-gray-500 w-8">20</span>
                     </div>
-                    <input type="range" id="marginY-slider" min="0" max="50" step="1" value="20">
-                </div>
-                <div>
-                    <div class="flex justify-between items-baseline mb-2">
-                        <label class="text-xs text-gray-500">图片左右间距</label>
-                        <span id="gapX-value" class="text-xs font-mono text-gray-700">10mm</span>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-gray-400 whitespace-nowrap">左右间距</label>
+                        <input type="range" id="gapX-slider" min="0" max="30" step="1" value="10" class="w-16">
+                        <span id="gapX-value" class="text-xs font-mono text-gray-500 w-8">10</span>
                     </div>
-                    <input type="range" id="gapX-slider" min="0" max="30" step="1" value="10">
-                </div>
-                <div>
-                    <div class="flex justify-between items-baseline mb-2">
-                        <label class="text-xs text-gray-500">图片上下间距</label>
-                        <span id="gapY-value" class="text-xs font-mono text-gray-700">10mm</span>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs text-gray-400 whitespace-nowrap">上下间距</label>
+                        <input type="range" id="gapY-slider" min="0" max="30" step="1" value="10" class="w-16">
+                        <span id="gapY-value" class="text-xs font-mono text-gray-500 w-8">10</span>
                     </div>
-                    <input type="range" id="gapY-slider" min="0" max="30" step="1" value="10">
                 </div>
-            </div>
-        </div>
-
-        <!-- 预览 -->
-        <div id="preview-container" class="hidden mb-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-sm font-semibold text-gray-600">排版预览</h2>
-                <div class="flex gap-2">
-                    <button id="download-pdf" class="px-5 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+                <!-- 按钮 -->
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <button id="append-btn" class="px-3 py-1.5 text-xs bg-white text-gray-600 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors">
+                        + 追加文件
+                    </button>
+                    <button id="download-pdf" class="px-4 py-1.5 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" disabled>
                         下载合并PDF
                     </button>
-                    <button id="reset-btn" class="px-5 py-2 bg-white text-gray-600 text-sm rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
-                        重新选择
+                    <button id="reset-btn" class="px-3 py-1.5 text-xs bg-white text-gray-500 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors">
+                        重置
                     </button>
                 </div>
             </div>
+        </div>
+        <input type="file" id="append-upload" accept=".pdf,.jpg,.jpeg,.png,.gif,.bmp" multiple class="hidden">
+
+        <!-- 预览 -->
+        <div id="preview-container" class="hidden panel-enter">
             <div id="preview-content"></div>
         </div>
     </div>
@@ -249,106 +169,60 @@
         class CustomCMapReaderFactory {
             constructor({ baseUrl }) { this.baseUrl = baseUrl; }
             async fetch({ name }) {
-                const url = `${this.baseUrl}${name}.bcmap`;
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`Unable to load CMap at: ${url}`);
-                const data = await response.arrayBuffer();
-                return { cMapData: new Uint8Array(data), compressionType: 1 };
+                const r = await fetch(`${this.baseUrl}${name}.bcmap`);
+                if (!r.ok) throw new Error(`CMap load failed: ${name}`);
+                const d = await r.arrayBuffer();
+                return { cMapData: new Uint8Array(d), compressionType: 1 };
             }
         }
 
-        const CONFIG = {
-            cols: 2, rows: 2, perPage: 4,
-            marginX: 30, marginY: 20,
-            gapX: 10, gapY: 10,
-            scale: 2, quality: 0.95
-        };
+        const CONFIG = { cols: 2, rows: 2, perPage: 4, marginX: 30, marginY: 20, gapX: 10, gapY: 10, scale: 2, quality: 0.95 };
 
+        const $ = id => document.getElementById(id);
         const elements = {
-            fileInput: document.getElementById('file-upload'),
-            fileCount: document.getElementById('file-count'),
-            loading: document.getElementById('loading'),
-            progressContainer: document.getElementById('progress-container'),
-            progressBar: document.getElementById('progress-bar'),
-            progressText: document.getElementById('progress-text'),
-            marginPanel: document.getElementById('margin-panel'),
-            marginXSlider: document.getElementById('marginX-slider'),
-            marginYSlider: document.getElementById('marginY-slider'),
-            gapXSlider: document.getElementById('gapX-slider'),
-            gapYSlider: document.getElementById('gapY-slider'),
-            marginXValue: document.getElementById('marginX-value'),
-            marginYValue: document.getElementById('marginY-value'),
-            gapXValue: document.getElementById('gapX-value'),
-            gapYValue: document.getElementById('gapY-value'),
-            previewContainer: document.getElementById('preview-container'),
-            previewContent: document.getElementById('preview-content'),
-            downloadBtn: document.getElementById('download-pdf'),
-            resetBtn: document.getElementById('reset-btn')
+            fileInput: $('file-upload'), appendInput: $('append-upload'),
+            fileCount: $('file-count'), loading: $('loading'),
+            progressContainer: $('progress-container'), progressBar: $('progress-bar'), progressText: $('progress-text'),
+            toolbar: $('toolbar'),
+            marginXSlider: $('marginX-slider'), marginYSlider: $('marginY-slider'),
+            gapXSlider: $('gapX-slider'), gapYSlider: $('gapY-slider'),
+            marginXValue: $('marginX-value'), marginYValue: $('marginY-value'),
+            gapXValue: $('gapX-value'), gapYValue: $('gapY-value'),
+            previewContainer: $('preview-container'), previewContent: $('preview-content'),
+            downloadBtn: $('download-pdf'), resetBtn: $('reset-btn'), appendBtn: $('append-btn')
         };
 
-        let imageDataList = [];
-        let dragSrcIndex = null;
+        let imageDataList = [], dragSrcIndex = null;
 
-        function updateProgress(current, total, message = '') {
-            const percent = Math.round((current / total) * 100);
-            elements.progressBar.style.width = `${percent}%`;
-            elements.progressText.textContent = message || `处理中 ${current}/${total} (${percent}%)`;
+        function updateProgress(cur, total, msg) {
+            elements.progressBar.style.width = `${Math.round(cur/total*100)}%`;
+            elements.progressText.textContent = msg || `处理中 ${cur}/${total}`;
         }
-
-        function showError(message) {
-            alert(`错误：${message}`);
-            console.error(message);
-        }
+        function showError(msg) { alert(`错误：${msg}`); console.error(msg); }
 
         async function pdfToImage(file) {
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({
-                    data: arrayBuffer,
-                    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/cmaps/',
-                    cMapPacked: true,
-                    standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/standard_fonts/',
-                    CMapReaderFactory: CustomCMapReaderFactory,
-                    disableFontFace: false,
-                    useSystemFonts: true,
-                    ignoreErrors: true
-                }).promise;
-                if (pdf.numPages === 0) throw new Error('PDF文件无页面');
-                const page = await pdf.getPage(1);
-                const viewport = page.getViewport({ scale: CONFIG.scale });
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
-                await page.render({ canvasContext: ctx, viewport }).promise;
-                return {
-                    base64: canvas.toDataURL('image/jpeg', CONFIG.quality),
-                    width: viewport.width, height: viewport.height,
-                    fileName: file.name, fileType: 'pdf',
-                    rotation: 0
-                };
-            } catch (error) {
-                throw new Error(`处理PDF ${file.name} 失败：${error.message}`);
-            }
+            const buf = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({
+                data: buf, cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/cmaps/',
+                cMapPacked: true, standardFontDataUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/standard_fonts/',
+                CMapReaderFactory: CustomCMapReaderFactory, disableFontFace: false, useSystemFonts: true, ignoreErrors: true
+            }).promise;
+            if (pdf.numPages === 0) throw new Error('PDF文件无页面');
+            const page = await pdf.getPage(1), vp = page.getViewport({ scale: CONFIG.scale });
+            const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+            await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+            return { base64: c.toDataURL('image/jpeg', CONFIG.quality), width: vp.width, height: vp.height, fileName: file.name, fileType: 'pdf', rotation: 0 };
         }
 
         function imageFileToBase64(file) {
             return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                const img = new Image();
-                reader.onload = (e) => {
+                const reader = new FileReader(), img = new Image();
+                reader.onload = e => {
                     img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        canvas.width = img.width * CONFIG.scale;
-                        canvas.height = img.height * CONFIG.scale;
-                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        resolve({
-                            base64: canvas.toDataURL('image/jpeg', CONFIG.quality),
-                            width: canvas.width, height: canvas.height,
-                            fileName: file.name, fileType: 'image',
-                            rotation: 0
-                        });
+                        const c = document.createElement('canvas'), s = CONFIG.scale;
+                        c.width = img.width * s; c.height = img.height * s;
+                        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                        resolve({ base64: c.toDataURL('image/jpeg', CONFIG.quality), width: c.width, height: c.height, fileName: file.name, fileType: 'image', rotation: 0 });
                     };
                     img.onerror = () => reject(new Error('图片加载失败'));
                     img.src = e.target.result;
@@ -364,24 +238,16 @@
             throw new Error(`不支持的文件类型：${file.name}`);
         }
 
-        // 将图片旋转90度，返回新的base64和宽高
         function rotateImageData(imageData) {
-            return new Promise((resolve) => {
+            return new Promise(resolve => {
                 const img = new Image();
                 img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    // 顺时针90度：新画布宽高互换
-                    canvas.width = img.height;
-                    canvas.height = img.width;
-                    const ctx = canvas.getContext('2d');
-                    ctx.translate(canvas.width, 0);
-                    ctx.rotate(Math.PI / 2);
+                    const c = document.createElement('canvas');
+                    c.width = img.height; c.height = img.width;
+                    const ctx = c.getContext('2d');
+                    ctx.translate(c.width, 0); ctx.rotate(Math.PI / 2);
                     ctx.drawImage(img, 0, 0);
-                    resolve({
-                        base64: canvas.toDataURL('image/jpeg', CONFIG.quality),
-                        width: canvas.width,
-                        height: canvas.height
-                    });
+                    resolve({ base64: c.toDataURL('image/jpeg', CONFIG.quality), width: c.width, height: c.height });
                 };
                 img.src = imageData.base64;
             });
@@ -389,28 +255,36 @@
 
         function renderPreview() {
             elements.previewContent.innerHTML = '';
+            if (!imageDataList.length) { elements.previewContainer.classList.add('hidden'); return; }
+            elements.previewContainer.classList.remove('hidden');
+
             const totalPages = Math.ceil(imageDataList.length / CONFIG.perPage);
-            const prevW = 842, prevH = 595;
-            const marginXpx = CONFIG.marginX * prevW / 297;
-            const marginYpx = CONFIG.marginY * prevH / 210;
-            const gapXpx = CONFIG.gapX * prevW / 297;
-            const gapYpx = CONFIG.gapY * prevH / 210;
+            // 用rem式布局：获取实际容器宽度来缩放
+            const container = elements.previewContent;
+            const containerW = container.offsetWidth || 842;
+            // A4 横版比例 297:210
+            const prevW = Math.min(containerW, 842);
+            const prevH = prevW * 210 / 297;
+
+            const mxR = CONFIG.marginX / 297, myR = CONFIG.marginY / 210;
+            const gxR = CONFIG.gapX / 297, gyR = CONFIG.gapY / 210;
+            const marginXpx = mxR * prevW, marginYpx = myR * prevH;
+            const gapXpx = gxR * prevW, gapYpx = gyR * prevH;
             const contentW = prevW - 2 * marginXpx - (CONFIG.cols - 1) * gapXpx;
             const contentH = prevH - 2 * marginYpx - (CONFIG.rows - 1) * gapYpx;
-            const cellW = contentW / CONFIG.cols;
-            const cellH = contentH / CONFIG.rows;
+            const cellW = contentW / CONFIG.cols, cellH = contentH / CONFIG.rows;
 
-            for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
-                const start = pageIdx * CONFIG.perPage;
+            for (let pi = 0; pi < totalPages; pi++) {
+                const start = pi * CONFIG.perPage;
                 const end = Math.min(start + CONFIG.perPage, imageDataList.length);
                 const pageData = imageDataList.slice(start, end);
 
                 const pageDiv = document.createElement('div');
-                pageDiv.className = 'mb-6';
+                pageDiv.className = 'mb-5';
 
                 const label = document.createElement('div');
-                label.className = 'text-xs text-gray-400 mb-2 text-center';
-                label.textContent = `第 ${pageIdx + 1} 页 / 共 ${totalPages} 页`;
+                label.className = 'text-xs text-gray-400 mb-1.5 text-center';
+                label.textContent = `第 ${pi+1} 页 / 共 ${totalPages} 页`;
                 pageDiv.appendChild(label);
 
                 const preview = document.createElement('div');
@@ -418,95 +292,107 @@
                 preview.style.position = 'relative';
 
                 pageData.forEach((data, idx) => {
-                    const globalIdx = start + idx;
-                    const col = idx % CONFIG.cols;
-                    const row = Math.floor(idx / CONFIG.cols);
+                    const gi = start + idx;
+                    const col = idx % CONFIG.cols, row = Math.floor(idx / CONFIG.cols);
                     const cellX = marginXpx + col * (cellW + gapXpx);
                     const cellY = marginYpx + row * (cellH + gapYpx);
 
-                    const imgRatio = data.width / data.height;
-                    const cellRatio = cellW / cellH;
-                    let dispW, dispH;
-                    if (imgRatio > cellRatio) { dispW = cellW; dispH = cellW / imgRatio; }
-                    else { dispH = cellH; dispW = cellH * imgRatio; }
-                    const dispX = cellX + (cellW - dispW) / 2;
-                    const dispY = cellY + (cellH - dispH) / 2;
+                    const ir = data.width / data.height, cr = cellW / cellH;
+                    let dW, dH;
+                    if (ir > cr) { dW = cellW; dH = cellW / ir; }
+                    else { dH = cellH; dW = cellH * ir; }
+                    const dX = cellX + (cellW - dW) / 2, dY = cellY + (cellH - dH) / 2;
 
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'preview-item';
-                    wrapper.draggable = true;
-                    wrapper.dataset.index = globalIdx;
-                    wrapper.style.cssText = `position:absolute;left:${dispX}px;top:${dispY}px;width:${dispW}px;height:${dispH}px;border:1px solid #e5e7eb;border-radius:3px;background:#fafafa;overflow:hidden;`;
+                    const w = document.createElement('div');
+                    w.className = 'preview-item'; w.draggable = true; w.dataset.index = gi;
+                    w.style.cssText = `position:absolute;left:${dX}px;top:${dY}px;width:${dW}px;height:${dH}px;border:1px solid #e5e7eb;border-radius:2px;background:#fafafa;overflow:hidden;`;
 
                     const img = document.createElement('img');
-                    img.src = data.base64;
-                    img.alt = data.fileName;
-                    img.title = `${data.fileName} (${data.fileType})`;
+                    img.src = data.base64; img.draggable = false;
                     img.style.cssText = 'width:100%;height:100%;object-fit:contain;';
-                    img.draggable = false;
 
                     const badge = document.createElement('div');
-                    badge.className = 'order-badge';
-                    badge.textContent = globalIdx + 1;
+                    badge.className = 'order-badge'; badge.textContent = gi + 1;
 
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'delete-btn';
-                    delBtn.textContent = '✕';
-                    delBtn.addEventListener('click', (e) => {
+                    // 按钮尺寸按预览缩放
+                    const btnSize = Math.max(16, Math.round(prevW / 42));
+                    const btnFontSize = Math.max(9, Math.round(prevW / 70));
+                    const btnGap = Math.max(2, Math.round(btnSize * 0.15));
+
+                    // 上移按钮（左下角）
+                    const upBtn = document.createElement('button');
+                    upBtn.className = 'action-btn';
+                    upBtn.title = '前移';
+                    upBtn.disabled = gi === 0;
+                    upBtn.innerHTML = '&#x25C0;';
+                    upBtn.style.cssText = `bottom:${btnGap + 2}px;left:${btnGap + 2}px;width:${btnSize}px;height:${btnSize}px;font-size:${btnFontSize}px;background:rgba(107,114,128,0.8);`;
+                    upBtn.addEventListener('click', e => {
                         e.stopPropagation();
-                        imageDataList.splice(parseInt(wrapper.dataset.index), 1);
-                        renderPreview();
+                        const i = parseInt(w.dataset.index);
+                        if (i > 0) {
+                            [imageDataList[i - 1], imageDataList[i]] = [imageDataList[i], imageDataList[i - 1]];
+                            renderPreview();
+                        }
+                    });
+
+                    // 下移按钮（左下角，上移右侧）
+                    const downBtn = document.createElement('button');
+                    downBtn.className = 'action-btn';
+                    downBtn.title = '后移';
+                    downBtn.disabled = gi === imageDataList.length - 1;
+                    downBtn.innerHTML = '&#x25B6;';
+                    downBtn.style.cssText = `bottom:${btnGap + 2}px;left:${btnGap + 2 + btnSize + 2}px;width:${btnSize}px;height:${btnSize}px;font-size:${btnFontSize}px;background:rgba(107,114,128,0.8);`;
+                    downBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        const i = parseInt(w.dataset.index);
+                        if (i < imageDataList.length - 1) {
+                            [imageDataList[i + 1], imageDataList[i]] = [imageDataList[i], imageDataList[i + 1]];
+                            renderPreview();
+                        }
                     });
 
                     const rotBtn = document.createElement('button');
-                    rotBtn.className = 'rotate-btn';
-                    rotBtn.innerHTML = '&#x21BB;';
+                    rotBtn.className = 'action-btn';
                     rotBtn.title = '旋转90°';
-                    rotBtn.addEventListener('click', async (e) => {
+                    rotBtn.innerHTML = '&#x21BB;';
+                    rotBtn.style.cssText = `bottom:4px;right:4px;width:${btnSize}px;height:${btnSize}px;font-size:${btnFontSize}px;background:rgba(59,130,246,0.8);`;
+                    rotBtn.addEventListener('click', async e => {
                         e.stopPropagation();
-                        const idx = parseInt(wrapper.dataset.index);
-                        const item = imageDataList[idx];
-                        const rotated = await rotateImageData(item);
-                        item.base64 = rotated.base64;
-                        item.width = rotated.width;
-                        item.height = rotated.height;
+                        const i = parseInt(w.dataset.index), item = imageDataList[i];
+                        const r = await rotateImageData(item);
+                        item.base64 = r.base64; item.width = r.width; item.height = r.height;
                         item.rotation = (item.rotation + 90) % 360;
                         renderPreview();
                     });
 
-                    wrapper.appendChild(img);
-                    wrapper.appendChild(badge);
-                    wrapper.appendChild(rotBtn);
-                    wrapper.appendChild(delBtn);
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'action-btn';
+                    delBtn.title = '删除';
+                    delBtn.textContent = '?';
+                    delBtn.style.cssText = `top:4px;right:4px;width:${btnSize}px;height:${btnSize}px;font-size:${btnFontSize}px;background:rgba(239,68,68,0.85);`;
+                    delBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        imageDataList.splice(parseInt(w.dataset.index), 1);
+                        renderPreview();
+                    });
 
-                    wrapper.addEventListener('dragstart', () => {
-                        dragSrcIndex = parseInt(wrapper.dataset.index);
-                        wrapper.classList.add('dragging');
-                    });
-                    wrapper.addEventListener('dragend', () => {
-                        wrapper.classList.remove('dragging');
-                        document.querySelectorAll('.preview-item.drag-over').forEach(el => el.classList.remove('drag-over'));
-                    });
-                    wrapper.addEventListener('dragover', (e) => {
-                        e.preventDefault();
-                        wrapper.classList.add('drag-over');
-                    });
-                    wrapper.addEventListener('dragleave', () => wrapper.classList.remove('drag-over'));
-                    wrapper.addEventListener('drop', (e) => {
-                        e.preventDefault();
-                        wrapper.classList.remove('drag-over');
-                        const dropIndex = parseInt(wrapper.dataset.index);
-                        if (dragSrcIndex !== null && dragSrcIndex !== dropIndex) {
-                            const [moved] = imageDataList.splice(dragSrcIndex, 1);
-                            imageDataList.splice(dropIndex, 0, moved);
-                            renderPreview();
+                    w.append(img, badge, upBtn, downBtn, rotBtn, delBtn);
+
+                    w.addEventListener('dragstart', () => { dragSrcIndex = parseInt(w.dataset.index); w.classList.add('dragging'); });
+                    w.addEventListener('dragend', () => { w.classList.remove('dragging'); document.querySelectorAll('.preview-item.drag-over').forEach(e => e.classList.remove('drag-over')); });
+                    w.addEventListener('dragover', e => { e.preventDefault(); w.classList.add('drag-over'); });
+                    w.addEventListener('dragleave', () => w.classList.remove('drag-over'));
+                    w.addEventListener('drop', e => {
+                        e.preventDefault(); w.classList.remove('drag-over');
+                        const di = parseInt(w.dataset.index);
+                        if (dragSrcIndex !== null && dragSrcIndex !== di) {
+                            const [m] = imageDataList.splice(dragSrcIndex, 1);
+                            imageDataList.splice(di, 0, m); renderPreview();
                         }
                         dragSrcIndex = null;
                     });
-
-                    preview.appendChild(wrapper);
+                    preview.appendChild(w);
                 });
-
                 pageDiv.appendChild(preview);
                 elements.previewContent.appendChild(pageDiv);
             }
@@ -517,40 +403,24 @@
                 elements.downloadBtn.disabled = true;
                 elements.downloadBtn.textContent = '生成中...';
                 const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-                const a4W = 297, a4H = 210;
-                const totalGapX = (CONFIG.cols - 1) * CONFIG.gapX;
-                const totalGapY = (CONFIG.rows - 1) * CONFIG.gapY;
-                const availW = a4W - 2 * CONFIG.marginX - totalGapX;
-                const availH = a4H - 2 * CONFIG.marginY - totalGapY;
-                const cellW = availW / CONFIG.cols;
-                const cellH = availH / CONFIG.rows;
-                const pxToMm = (px) => px * 25.4 / 96 / CONFIG.scale;
-
-                imageDataList.forEach((imageData, idx) => {
-                    const localIdx = idx % CONFIG.perPage;
-                    const col = localIdx % CONFIG.cols;
-                    const row = Math.floor(localIdx / CONFIG.cols);
-                    if (localIdx === 0 && idx > 0) doc.addPage();
+                const cellW = (297 - 2*CONFIG.marginX - (CONFIG.cols-1)*CONFIG.gapX) / CONFIG.cols;
+                const cellH = (210 - 2*CONFIG.marginY - (CONFIG.rows-1)*CONFIG.gapY) / CONFIG.rows;
+                const px2mm = px => px * 25.4 / 96 / CONFIG.scale;
+                imageDataList.forEach((d, idx) => {
+                    const li = idx % CONFIG.perPage, col = li % CONFIG.cols, row = Math.floor(li / CONFIG.cols);
+                    if (li === 0 && idx > 0) doc.addPage();
                     const x = CONFIG.marginX + col * (cellW + CONFIG.gapX);
                     const y = CONFIG.marginY + row * (cellH + CONFIG.gapY);
-                    const imgWMm = pxToMm(imageData.width);
-                    const imgHMm = pxToMm(imageData.height);
-                    let fW = imgWMm, fH = imgHMm;
-                    if (imgWMm > cellW || imgHMm > cellH) {
-                        const s = Math.min(cellW / imgWMm, cellH / imgHMm, 1);
-                        fW = imgWMm * s; fH = imgHMm * s;
-                    }
-                    doc.addImage(imageData.base64, 'JPEG', x + (cellW - fW) / 2, y + (cellH - fH) / 2, fW, fH);
+                    let fW = px2mm(d.width), fH = px2mm(d.height);
+                    if (fW > cellW || fH > cellH) { const s = Math.min(cellW/fW, cellH/fH, 1); fW *= s; fH *= s; }
+                    doc.addImage(d.base64, 'JPEG', x + (cellW-fW)/2, y + (cellH-fH)/2, fW, fH);
                 });
-
-                const now = new Date();
-                const bj = new Date(now.getTime() + 8 * 3600000);
-                const ts = bj.toISOString().slice(0, 19).replace(/:/g, '-').replace('T', '_');
-                doc.save(`合并文件_${ts}.pdf`);
+                const now = new Date(Date.now() + 8*36e5);
+                doc.save(`合并文件_${now.toISOString().slice(0,19).replace(/:/g,'-').replace('T','_')}.pdf`);
                 elements.downloadBtn.disabled = false;
                 elements.downloadBtn.textContent = '下载合并PDF';
-            } catch (error) {
-                showError(`生成PDF失败：${error.message}`);
+            } catch (e) {
+                showError(`生成PDF失败：${e.message}`);
                 elements.downloadBtn.disabled = false;
                 elements.downloadBtn.textContent = '下载合并PDF';
             }
@@ -561,83 +431,81 @@
             elements.fileInput.value = '';
             elements.fileCount.classList.add('hidden');
             elements.previewContainer.classList.add('hidden');
-            elements.marginPanel.classList.add('hidden');
+            elements.toolbar.classList.add('hidden');
             elements.progressContainer.classList.add('hidden');
             CONFIG.marginX = 30; CONFIG.marginY = 20; CONFIG.gapX = 10; CONFIG.gapY = 10;
-            elements.marginXSlider.value = 30; elements.marginXValue.textContent = '30mm';
-            elements.marginYSlider.value = 20; elements.marginYValue.textContent = '20mm';
-            elements.gapXSlider.value = 10; elements.gapXValue.textContent = '10mm';
-            elements.gapYSlider.value = 10; elements.gapYValue.textContent = '10mm';
+            elements.marginXSlider.value = 30; elements.marginXValue.textContent = '30';
+            elements.marginYSlider.value = 20; elements.marginYValue.textContent = '20';
+            elements.gapXSlider.value = 10; elements.gapXValue.textContent = '10';
+            elements.gapYSlider.value = 10; elements.gapYValue.textContent = '10';
+        }
+
+        function updateFileCount() {
+            const total = imageDataList.length;
+            const pdfs = imageDataList.filter(d => d.fileType === 'pdf').length;
+            const imgs = total - pdfs;
+            const pages = Math.ceil(total / CONFIG.perPage);
+            elements.fileCount.textContent = `${total} 张 · PDF ${pdfs} · 图片 ${imgs} · 共 ${pages} 页`;
+            elements.fileCount.classList.remove('hidden');
         }
 
         // 拖拽上传
         const uploadZone = document.querySelector('.upload-zone');
-        ['dragenter', 'dragover'].forEach(ev => uploadZone.addEventListener(ev, (e) => { e.preventDefault(); uploadZone.classList.add('drag-active'); }));
-        ['dragleave', 'drop'].forEach(ev => uploadZone.addEventListener(ev, () => uploadZone.classList.remove('drag-active')));
-        uploadZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const files = Array.from(e.dataTransfer.files);
-            if (files.length) handleFiles(files);
-        });
+        ['dragenter','dragover'].forEach(ev => uploadZone.addEventListener(ev, e => { e.preventDefault(); uploadZone.classList.add('drag-active'); }));
+        ['dragleave','drop'].forEach(ev => uploadZone.addEventListener(ev, () => uploadZone.classList.remove('drag-active')));
+        uploadZone.addEventListener('drop', e => { e.preventDefault(); handleFiles(Array.from(e.dataTransfer.files), false); });
 
-        function handleFiles(files) {
-            const valid = files.filter(f =>
-                f.type === 'application/pdf' || f.name.endsWith('.pdf') || f.type.startsWith('image/')
-            );
-            if (valid.length === 0) { showError('请选择至少一个PDF或图片文件'); return; }
+        async function handleFiles(files, append = false) {
+            const valid = files.filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf') || f.type.startsWith('image/'));
+            if (!valid.length) { showError('请选择至少一个PDF或图片文件'); return; }
 
-            const pdfCount = valid.filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf')).length;
-            const imageCount = valid.length - pdfCount;
-            const totalPages = Math.ceil(valid.length / CONFIG.perPage);
-            elements.fileCount.textContent = `${valid.length} 个文件 · PDF ${pdfCount} · 图片 ${imageCount} · ${totalPages} 页`;
-            elements.fileCount.classList.remove('hidden');
-
-            imageDataList = [];
+            if (!append) imageDataList = [];
             elements.previewContent.innerHTML = '';
             elements.loading.classList.remove('hidden');
             elements.progressContainer.classList.remove('hidden');
             elements.previewContainer.classList.add('hidden');
-            elements.marginPanel.classList.add('hidden');
+            elements.toolbar.classList.add('hidden');
 
-            (async () => {
-                try {
-                    for (let i = 0; i < valid.length; i++) {
-                        updateProgress(i + 1, valid.length, valid[i].name);
-                        imageDataList.push(await processFile(valid[i]));
-                    }
-                    elements.loading.classList.add('hidden');
-                    elements.progressContainer.classList.add('hidden');
-                    renderPreview();
-                    elements.previewContainer.classList.remove('hidden');
-                    elements.marginPanel.classList.remove('hidden');
-                    elements.downloadBtn.disabled = false;
-                } catch (error) {
-                    showError(error.message);
-                    elements.loading.classList.add('hidden');
-                    elements.progressContainer.classList.add('hidden');
-                    reset();
+            try {
+                for (let i = 0; i < valid.length; i++) {
+                    updateProgress(i+1, valid.length, valid[i].name);
+                    imageDataList.push(await processFile(valid[i]));
                 }
-            })();
+                elements.loading.classList.add('hidden');
+                elements.progressContainer.classList.add('hidden');
+                updateFileCount();
+                renderPreview();
+                elements.previewContainer.classList.remove('hidden');
+                elements.toolbar.classList.remove('hidden');
+                elements.downloadBtn.disabled = false;
+            } catch (e) {
+                showError(e.message);
+                elements.loading.classList.add('hidden');
+                elements.progressContainer.classList.add('hidden');
+                if (!append) reset();
+            }
         }
 
-        elements.fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length) handleFiles(Array.from(e.target.files));
-        });
+        elements.fileInput.addEventListener('change', e => { if (e.target.files.length) handleFiles(Array.from(e.target.files)); });
+        elements.appendInput.addEventListener('change', e => { if (e.target.files.length) handleFiles(Array.from(e.target.files), true); e.target.value = ''; });
+        elements.appendBtn.addEventListener('click', () => elements.appendInput.click());
 
-        // 滑块联动
-        [['marginX', 'marginXSlider', 'marginXValue'],
-         ['marginY', 'marginYSlider', 'marginYValue'],
-         ['gapX', 'gapXSlider', 'gapXValue'],
-         ['gapY', 'gapYSlider', 'gapYValue']].forEach(([key, slider, val]) => {
-            elements[slider].addEventListener('input', () => {
-                CONFIG[key] = parseInt(elements[slider].value);
-                elements[val].textContent = elements[slider].value + 'mm';
+        // 滑块
+        [['marginX','marginXSlider','marginXValue'],['marginY','marginYSlider','marginYValue'],
+         ['gapX','gapXSlider','gapXValue'],['gapY','gapYSlider','gapYValue']].forEach(([k, s, v]) => {
+            elements[s].addEventListener('input', () => {
+                CONFIG[k] = parseInt(elements[s].value);
+                elements[v].textContent = elements[s].value;
                 if (imageDataList.length) renderPreview();
             });
         });
 
         elements.downloadBtn.addEventListener('click', generatePDF);
         elements.resetBtn.addEventListener('click', reset);
+
+        // 窗口缩放时重新渲染预览
+        let resizeTimer;
+        window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (imageDataList.length) renderPreview(); }, 200); });
     </script>
 </body>
 </html>
